@@ -1,4 +1,7 @@
 # coding=utf-8
+
+# 2020-08 some changes for py3-env
+
 import random
 import os
 from common.util import download_file
@@ -16,6 +19,19 @@ def read_data(label, image):
         magic, num = struct.unpack(">II", flbl.read(8))
         label = np.fromstring(flbl.read(), dtype=np.int8)
     with gzip.open(download_file(base_url + image, os.path.join('data', image)), 'rb') as fimg:
+        magic, num, rows, cols = struct.unpack(">IIII", fimg.read(16))
+        image = np.fromstring(fimg.read(), dtype=np.uint8).reshape(
+            len(label), rows, cols)
+    return (label, image)
+
+def read_data_local(label, image):
+    """
+    do not download, use local file instead 2020-08
+    """
+    with gzip.open('./data/'+label) as flbl:
+        magic, num = struct.unpack(">II", flbl.read(8))
+        label = np.fromstring(flbl.read(), dtype=np.int8)
+    with gzip.open('./data/'+image, 'rb') as fimg:
         magic, num, rows, cols = struct.unpack(">IIII", fimg.read(16))
         image = np.fromstring(fimg.read(), dtype=np.uint8).reshape(
             len(label), rows, cols)
@@ -60,7 +76,9 @@ class PairDataIter(mx.io.DataIter):
 
     def reset(self):
         self.count = 0
-        indexes = range(len(self.pairs))
+        # the following does not work on my settings, so I change it like this
+        # indexes = range(len(self.pairs))
+        indexes = list(np.range(len(self.pairs))) # the range can not assign item, and the input should be a list, 2020-08
         random.shuffle(indexes)
         self.pairs = self.pairs[indexes]
         self.sim_labels = self.sim_labels[indexes]
@@ -82,5 +100,5 @@ class PairDataIter(mx.io.DataIter):
 if __name__=='__main__':
     pair_iter = PairDataIter(batch_size=10)
     batch = pair_iter.next()
-    print batch.data[0], batch.label[0]
+    print(batch.data[0], batch.label[0]) # for py3
 
